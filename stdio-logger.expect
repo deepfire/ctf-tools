@@ -1,0 +1,35 @@
+#!/usr/bin/env expect
+
+set stty_init {raw -echo}
+log_user 0
+
+spawn /usr/bin/cat
+set wrapped_pid [exp_pid]
+
+set in  [open "$wrapped_pid.in.log"  w]
+set out [open "$wrapped_pid.out.log" w]
+
+set proc_id $spawn_id
+set user_id $user_spawn_id
+
+set pid [fork]
+
+if {$pid!=0} {
+	expect -i $proc_id -re . {
+		puts -nonewline $out $expect_out(buffer)
+		send -i $user_id  -- $expect_out(buffer)
+		exp_continue
+	} eof {
+	}
+} else {
+	expect -i $user_id -re . {
+		puts -nonewline $in  $expect_out(buffer)
+		send -i $proc_id  -- $expect_out(buffer)
+		exp_continue
+	} eof {
+		close
+		sleep 0.1
+		exec kill $pid
+	}
+}
+
